@@ -7,12 +7,10 @@
 #include "oled_display.h"
 #include "common.h"
 #include "driver/gpio.h"
-#include "driver/i2c.h"
 #include "esp_err.h"
-#include "esp_intr_alloc.h"
 #include "esp_log.h"
 #include "sd_card.h"
-#include "ssd1306_drv.h"
+#include "ssd1306.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -30,6 +28,7 @@
  * STATIC VARIABLES
  ********************************/
 static bool s_oled_initialized = false;
+static SSD1306_t s_oled_dev;
 
 /*********************************
  * HELPER FUNCTIONS
@@ -92,43 +91,16 @@ void oled_display_init(void) {
   ESP_LOGI(OLED_TAG, "I2C: SDA=%d, SCL=%d", I2C_MASTER_SDA_IO,
            I2C_MASTER_SCL_IO);
 
-  // Initialize I2C interface
-  i2c_config_t conf = {
-      .mode = I2C_MODE_MASTER,
-      .sda_io_num = I2C_MASTER_SDA_IO,
-      .scl_io_num = I2C_MASTER_SCL_IO,
-      .sda_pullup_en = GPIO_PULLUP_ENABLE,
-      .scl_pullup_en = GPIO_PULLUP_ENABLE,
-      .master.clk_speed = I2C_MASTER_FREQ_HZ,
-  };
-
-  esp_err_t ret = i2c_param_config(I2C_MASTER_NUM, &conf);
-  if (ret != ESP_OK) {
-    ESP_LOGE(OLED_TAG, "I2C param config failed: %s", esp_err_to_name(ret));
-    return;
-  }
-
-  // Install I2C driver with interrupt allocation flag to avoid conflicts
-  ret = i2c_driver_install(I2C_MASTER_NUM, conf.mode, 0, 0,
-                           ESP_INTR_FLAG_LOWMED | ESP_INTR_FLAG_SHARED);
-  if (ret != ESP_OK) {
-    ESP_LOGE(OLED_TAG, "I2C driver install failed: %s", esp_err_to_name(ret));
-    return;
-  }
-
-  // Initialize SSD1306
-  ret = ssd1306_init(I2C_MASTER_NUM);
-  if (ret != ESP_OK) {
-    ESP_LOGE(OLED_TAG, "SSD1306 init failed: %s", esp_err_to_name(ret));
-    return;
-  }
+  // Initialize I2C and SSD1306 using new driver
+  i2c_master_init(&s_oled_dev, I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO, -1);
+  i2c_init(&s_oled_dev, 128, 32);
 
   // Clear display and show startup message
-  ssd1306_clear(I2C_MASTER_NUM);
-  ssd1306_contrast(I2C_MASTER_NUM, 0xFF);
+  ssd1306_clear_screen(&s_oled_dev, false);
+  ssd1306_contrast(&s_oled_dev, 0xFF);
 
-  ssd1306_text(I2C_MASTER_NUM, 0, "ESP32 A2DP SRC");
-  ssd1306_text(I2C_MASTER_NUM, 2, "Initializing...");
+  ssd1306_display_text(&s_oled_dev, 0, "ESP32 A2DP SRC", 14, false);
+  ssd1306_display_text(&s_oled_dev, 2, "Initializing...", 15, false);
 
   s_oled_initialized = true;
   ESP_LOGI(OLED_TAG, "OLED initialized successfully");
@@ -138,7 +110,7 @@ void oled_display_clear(void) {
   if (!s_oled_initialized) {
     return;
   }
-  ssd1306_clear(I2C_MASTER_NUM);
+  ssd1306_clear_screen(&s_oled_dev, false);
 }
 
 void oled_display_update(void) {
@@ -206,6 +178,6 @@ void oled_display_update(void) {
   /******************************************
    * Update display
    ******************************************/
-  ssd1306_text(I2C_MASTER_NUM, 0, line1);
-  ssd1306_text(I2C_MASTER_NUM, 2, line2);
+  ssd1306_display_text(&s_oled_dev, 0, line1, strlen(line1), false);
+  ssd1306_display_text(&s_oled_dev, 2, line2, strlen(line2), false);
 }

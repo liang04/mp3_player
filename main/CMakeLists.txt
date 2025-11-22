@@ -7,6 +7,8 @@ idf_component_register(SRCS "bt_app_core.c"
                             "bt_a2dp.c"
                             "bt_avrcp.c"
                             "oled_display.c"
-                            "ssd1306_drv.c"
+                            "ssd1306.c"
+                            "i2c.c"
+                            "spi.c"
                     PRIV_REQUIRES bt nvs_flash fatfs sdmmc esp_ringbuf driver esp_lcd
                     INCLUDE_DIRS ".")
