@@ -10,13 +10,7 @@
 #include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
-
-/*********************************
- * GPIO CONFIGURATION
- ********************************/
-#define GPIO_BTN_PREV 4
-#define GPIO_BTN_PLAY 5
-#define GPIO_BTN_NEXT 15
+#include "gpio_config.h"
 
 /*********************************
  * STATIC FUNCTIONS

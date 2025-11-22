@@ -9,6 +9,7 @@
 #include "driver/gpio.h"
 #include "esp_err.h"
 #include "esp_log.h"
+#include "gpio_config.h"
 #include "sd_card.h"
 #include "ssd1306.h"
 #include <stdio.h>
@@ -17,8 +18,6 @@
 /*********************************
  * CONFIGURATION
  ********************************/
-#define I2C_MASTER_SCL_IO 22
-#define I2C_MASTER_SDA_IO 21
 #define I2C_MASTER_NUM I2C_NUM_0
 #define I2C_MASTER_FREQ_HZ 400000
 
@@ -88,11 +87,10 @@ static void get_filename(const char *path, char *filename, size_t max_len) {
 
 void oled_display_init(void) {
   ESP_LOGI(OLED_TAG, "Initializing SSD1306 OLED (128x32)");
-  ESP_LOGI(OLED_TAG, "I2C: SDA=%d, SCL=%d", I2C_MASTER_SDA_IO,
-           I2C_MASTER_SCL_IO);
+  ESP_LOGI(OLED_TAG, "I2C: SDA=%d, SCL=%d", GPIO_OLED_SDA, GPIO_OLED_SCL);
 
   // Initialize I2C and SSD1306 using new driver
-  i2c_master_init(&s_oled_dev, I2C_MASTER_SDA_IO, I2C_MASTER_SCL_IO, -1);
+  i2c_master_init(&s_oled_dev, GPIO_OLED_SDA, GPIO_OLED_SCL, -1);
   i2c_init(&s_oled_dev, 128, 32);
 
   // Clear display and show startup message

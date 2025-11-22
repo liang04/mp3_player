@@ -10,6 +10,7 @@
 #include "driver/sdspi_host.h"
 #include "esp_log.h"
 #include "esp_vfs_fat.h"
+#include "gpio_config.h"
 #include "sdmmc_cmd.h"
 #include <dirent.h>
 #include <stdio.h>
@@ -46,9 +47,9 @@ void sd_card_init(void) {
   host.max_freq_khz = 4000; // 4MHz - balance between speed and stability
 
   spi_bus_config_t bus_cfg = {
-      .mosi_io_num = 26,
-      .miso_io_num = 19,
-      .sclk_io_num = 18,
+      .mosi_io_num = GPIO_SD_MOSI,
+      .miso_io_num = GPIO_SD_MISO,
+      .sclk_io_num = GPIO_SD_SCLK,
       .quadwp_io_num = -1,
       .quadhd_io_num = -1,
       .max_transfer_sz = 4000,
@@ -61,10 +62,10 @@ void sd_card_init(void) {
   }
 
   // Enable internal pull-ups for MISO (often needed if no external pull-up)
-  gpio_set_pull_mode(19, GPIO_PULLUP_ONLY);
+  gpio_set_pull_mode(GPIO_SD_MISO, GPIO_PULLUP_ONLY);
 
   sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
-  slot_config.gpio_cs = 27;
+  slot_config.gpio_cs = GPIO_SD_CS;
   slot_config.host_id = host.slot;
 
   ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config,
