@@ -11,6 +11,7 @@
 #include "freertos/timers.h"
 #include "nvs.h"
 #include "nvs_flash.h"
+#include <dirent.h>
 #include <inttypes.h>
 #include <math.h>
 #include <stdio.h>
@@ -25,6 +26,16 @@
 #include "esp_bt_device.h"
 #include "esp_bt_main.h"
 #include "esp_gap_bt_api.h"
+
+#include "driver/sdspi_host.h"
+#include "esp_vfs_fat.h"
+#include "freertos/ringbuf.h"
+#include "sdmmc_cmd.h"
+
+#define MINIMP3_IMPLEMENTATION
+#define MINIMP3_ONLY_MP3
+#define MINIMP3_NO_SIMD
+#include "minimp3.h"
 
 /* log tags */
 #define BT_AV_TAG "BT_AV"
@@ -118,6 +129,12 @@ static uint32_t s_pkt_cnt = 0; /* count of packets */
 static esp_avrc_rn_evt_cap_mask_t
     s_avrc_peer_rn_cap; /* AVRC target notification event capability bit mask */
 static TimerHandle_t s_tmr; /* handle of heart beat timer */
+
+static RingbufHandle_t s_ringbuf_handle = NULL;
+static mp3dec_t s_mp3d;
+
+#define MOUNT_POINT "/sdcard"
+#define RINGBUF_SIZE (8 * 1024)
 
 static const char remote_device_name[] = CONFIG_EXAMPLE_PEER_DEVICE_NAME;
 
@@ -386,21 +403,32 @@ static int32_t bt_app_a2d_data_cb(uint8_t *data, int32_t len) {
     return 0;
   }
 
-  static float phase = 0;
-  const float phase_increment = 2 * M_PI * 1000 / 44100;
-  const int amplitude = 3000;
-
-  int16_t *p_buf = (int16_t *)data;
-  for (int i = 0; i < (len >> 1); i += 2) {
-    int16_t sample = (int16_t)(amplitude * sinf(phase));
-    p_buf[i] = sample;     // Left channel
-    p_buf[i + 1] = sample; // Right channel
-    phase += phase_increment;
-    if (phase > 2 * M_PI) {
-      phase -= 2 * M_PI;
+  if (s_ringbuf_handle) {
+    int32_t bytes_filled = 0;
+    while (bytes_filled < len) {
+      size_t item_size;
+      // Receive up to the remaining needed bytes
+      char *item = (char *)xRingbufferReceiveUpTo(s_ringbuf_handle, &item_size,
+                                                  0, len - bytes_filled);
+      if (item != NULL) {
+        memcpy(data + bytes_filled, item, item_size);
+        vRingbufferReturnItem(s_ringbuf_handle, (void *)item);
+        bytes_filled += item_size;
+      } else {
+        // No more data available right now
+        break;
+      }
     }
+
+    // If we didn't fill the buffer, pad with silence
+    if (bytes_filled < len) {
+      memset(data + bytes_filled, 0, len - bytes_filled);
+    }
+    return len;
   }
 
+  // Silence if no data
+  memset(data, 0, len);
   return len;
 }
 
@@ -779,8 +807,180 @@ static void bt_av_hdl_avrc_ct_evt(uint16_t event, void *p_param) {
  * MAIN ENTRY POINT
  ********************************/
 
+static void init_sd_card(void) {
+  esp_err_t ret;
+  esp_vfs_fat_sdmmc_mount_config_t mount_config = {
+      .format_if_mount_failed = false,
+      .max_files = 5,
+      .allocation_unit_size = 16 * 1024};
+  sdmmc_card_t *card;
+  const char mount_point[] = MOUNT_POINT;
+  ESP_LOGI(BT_AV_TAG, "Initializing SD card");
+
+  sdmmc_host_t host = SDSPI_HOST_DEFAULT();
+  host.max_freq_khz = 400; // Lower frequency for better stability
+  spi_bus_config_t bus_cfg = {
+      .mosi_io_num = 26,
+      .miso_io_num = 19,
+      .sclk_io_num = 18,
+      .quadwp_io_num = -1,
+      .quadhd_io_num = -1,
+      .max_transfer_sz = 4000,
+  };
+  ret = spi_bus_initialize(host.slot, &bus_cfg, SDSPI_DEFAULT_DMA);
+  if (ret != ESP_OK) {
+    ESP_LOGE(BT_AV_TAG, "Failed to initialize bus.");
+    return;
+  }
+
+  // Enable internal pull-ups for MISO (often needed if no external pull-up)
+  gpio_set_pull_mode(19, GPIO_PULLUP_ONLY);
+
+  sdspi_device_config_t slot_config = SDSPI_DEVICE_CONFIG_DEFAULT();
+  slot_config.gpio_cs = 27;
+  slot_config.host_id = host.slot;
+
+  ret = esp_vfs_fat_sdspi_mount(mount_point, &host, &slot_config, &mount_config,
+                                &card);
+
+  if (ret != ESP_OK) {
+    if (ret == ESP_FAIL) {
+      ESP_LOGE(BT_AV_TAG, "Failed to mount filesystem.");
+    } else {
+      ESP_LOGE(BT_AV_TAG, "Failed to initialize the card (%s).",
+               esp_err_to_name(ret));
+    }
+    return;
+  }
+  ESP_LOGI(BT_AV_TAG, "Filesystem mounted");
+  sdmmc_card_print_info(stdout, card);
+}
+
+static void mp3_decode_task(void *arg) {
+  DIR *dir = opendir(MOUNT_POINT);
+  if (!dir) {
+    ESP_LOGE(BT_AV_TAG, "Failed to open directory");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  struct dirent *entry;
+  char filepath[512];
+  bool found = false;
+
+  while ((entry = readdir(dir)) != NULL) {
+    if (strstr(entry->d_name, ".mp3") || strstr(entry->d_name, ".MP3")) {
+      snprintf(filepath, sizeof(filepath), "%s/%s", MOUNT_POINT, entry->d_name);
+      ESP_LOGI(BT_AV_TAG, "Found mp3 file: %s", filepath);
+      found = true;
+      break;
+    }
+  }
+  closedir(dir);
+
+  if (!found) {
+    ESP_LOGE(BT_AV_TAG, "No MP3 file found");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  FILE *f = fopen(filepath, "rb");
+  if (!f) {
+    ESP_LOGE(BT_AV_TAG, "Failed to open file");
+    vTaskDelete(NULL);
+    return;
+  }
+
+  mp3dec_init(&s_mp3d);
+  // read_buf was unused, removing it.
+  int16_t *pcm_buf = malloc(MINIMP3_MAX_SAMPLES_PER_FRAME * sizeof(int16_t));
+
+  if (!pcm_buf) {
+    ESP_LOGE(BT_AV_TAG, "Failed to allocate pcm buffer");
+    fclose(f);
+    vTaskDelete(NULL);
+    return;
+  }
+
+  // Simple decoding loop (naive implementation)
+  // In a real app, we need to handle ID3 tags and proper streaming
+  // minimp3 mp3dec_ex functions are better for file streaming, but here we use
+  // low level for control Actually, let's use mp3dec_ex_open if available? No,
+  // I included minimp3.h which is low level. Wait, minimp3_ex.h is separate. I
+  // only downloaded minimp3.h. I will use the low level API.
+
+// We need a buffer for input stream
+#define INPUT_BUF_SIZE (4 * 1024)
+  uint8_t *input_buf = malloc(INPUT_BUF_SIZE);
+  if (!input_buf) {
+    ESP_LOGE(BT_AV_TAG, "Failed to allocate input buffer");
+    free(pcm_buf);
+    fclose(f);
+    vTaskDelete(NULL);
+    return;
+  }
+  int buf_valid = 0;
+
+  while (1) {
+    if (buf_valid < INPUT_BUF_SIZE) {
+      int read = fread(input_buf + buf_valid, 1, INPUT_BUF_SIZE - buf_valid, f);
+      if (read == 0) {
+        // End of file, rewind
+        fseek(f, 0, SEEK_SET);
+        continue;
+      }
+      buf_valid += read;
+    }
+
+    mp3dec_frame_info_t info;
+    int samples =
+        mp3dec_decode_frame(&s_mp3d, input_buf, buf_valid, pcm_buf, &info);
+
+    if (samples > 0) {
+      static bool s_format_logged = false;
+      if (!s_format_logged) {
+        ESP_LOGI(BT_AV_TAG, "MP3 format: %d Hz, %d channels", info.hz,
+                 info.channels);
+        s_format_logged = true;
+      }
+      // We have PCM data
+      size_t pcm_size = samples * info.channels * 2;
+      // Send to ringbuffer, wait indefinitely if full
+      if (xRingbufferSend(s_ringbuf_handle, pcm_buf, pcm_size, portMAX_DELAY) !=
+          pdTRUE) {
+        ESP_LOGW(BT_AV_TAG, "Ringbuffer send failed");
+      }
+    }
+
+    // Move remaining data to start
+    int consumed = info.frame_bytes;
+    if (consumed > 0 && consumed <= buf_valid) {
+      memmove(input_buf, input_buf + consumed, buf_valid - consumed);
+      buf_valid -= consumed;
+    } else if (consumed == 0) {
+      // Error or need more data
+      if (buf_valid == INPUT_BUF_SIZE) {
+        // Skip one byte to try resync
+        memmove(input_buf, input_buf + 1, buf_valid - 1);
+        buf_valid--;
+      }
+    }
+
+    vTaskDelay(pdMS_TO_TICKS(1)); // Yield
+  }
+
+  free(input_buf);
+  free(pcm_buf);
+  fclose(f);
+  vTaskDelete(NULL);
+}
+
 void app_main(void) {
   char bda_str[18] = {0};
+
+  s_ringbuf_handle = xRingbufferCreate(RINGBUF_SIZE, RINGBUF_TYPE_BYTEBUF);
+  init_sd_card();
+  xTaskCreate(mp3_decode_task, "mp3_decode", 32 * 1024, NULL, 5, NULL);
   /* initialize NVS — it is used to store PHY calibration data */
   esp_err_t ret = nvs_flash_init();
   if (ret == ESP_ERR_NVS_NO_FREE_PAGES ||
