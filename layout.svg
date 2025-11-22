@@ -1,0 +1,117 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 850" width="600" height="850">
+  <!-- 样式定义 -->
+  <defs>
+    <style>
+      .pcb { fill: #388E3C; stroke: #1B5E20; stroke-width: 4; }
+      .screen-bezel { fill: #212121; }
+      .screen-active { fill: #1a1a1a; stroke: #444; stroke-width: 2; }
+      .text-screen { font-family: 'Courier New', monospace; fill: #00E5FF; }
+      .btn-body { fill: #E0E0E0; stroke: #424242; stroke-width: 2; }
+      .btn-text { font-family: sans-serif; font-weight: bold; fill: #333; font-size: 14px; text-anchor: middle; }
+      .hidden-part { fill: none; stroke: #FFD600; stroke-width: 3; stroke-dasharray: 8,4; opacity: 0.9; }
+      .hidden-text { font-family: sans-serif; fill: #FBC02D; font-size: 16px; font-weight: bold; opacity: 0.9; }
+      .wire { stroke: #555; stroke-width: 2; fill: none; }
+      .label-line { stroke: #1976D2; stroke-width: 2; marker-end: url(#arrow); }
+      .label-text { font-family: sans-serif; fill: #1565C0; font-size: 16px; font-weight: bold; }
+    </style>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="0" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#1976D2" />
+    </marker>
+  </defs>
+
+  <!-- 背景网格 (装饰) -->
+  <rect width="100%" height="100%" fill="#f5f5f5"/>
+  <path d="M0,0 L600,0 L600,850 L0,850 Z" fill="none" stroke="#e0e0e0" stroke-width="1"/>
+  
+  <!-- 标题 -->
+  <text x="300" y="40" font-family="sans-serif" font-size="24" text-anchor="middle" fill="#333" font-weight="bold">DIY 蓝牙 MP3 组装透视图</text>
+  <text x="300" y="65" font-family="sans-serif" font-size="14" text-anchor="middle" fill="#666">实线=正面元件 | 虚线=背面隐形元件</text>
+
+  <!-- 主 PCB 板 (绿色) -->
+  <g transform="translate(100, 100)">
+    <rect x="0" y="0" width="400" height="600" rx="20" class="pcb"/>
+    
+    <!-- 固定螺丝孔 -->
+    <circle cx="20" cy="20" r="6" fill="#fff" stroke="#333"/>
+    <circle cx="380" cy="20" r="6" fill="#fff" stroke="#333"/>
+    <circle cx="20" cy="580" r="6" fill="#fff" stroke="#333"/>
+    <circle cx="380" cy="580" r="6" fill="#fff" stroke="#333"/>
+
+    <!-- === 背面元件 (虚线表示) === -->
+    
+    <!-- ESP32 开发板 (放在背面) -->
+    <rect x="80" y="50" width="240" height="180" class="hidden-part"/>
+    <text x="200" y="140" text-anchor="middle" class="hidden-text">ESP32 开发板 (背面)</text>
+    <text x="200" y="165" text-anchor="middle" font-size="12" fill="#FBC02D">注意天线朝上且无遮挡</text>
+    
+    <!-- 锂电池 (放在背面底部) -->
+    <rect x="50" y="420" width="300" height="120" class="hidden-part" style="stroke: #FF5252;"/>
+    <text x="200" y="490" text-anchor="middle" class="hidden-text" style="fill:#FF5252;">锂电池 (背面)</text>
+
+    <!-- === 正面元件 === -->
+
+    <!-- OLED 屏幕 -->
+    <g transform="translate(50, 60)">
+      <rect x="0" y="0" width="300" height="160" class="screen-bezel"/>
+      <rect x="10" y="10" width="280" height="140" class="screen-active"/>
+      <!-- 屏幕内容 -->
+      <text x="140" y="60" text-anchor="middle" class="text-screen" font-size="20">Bluetooth Mode</text>
+      <text x="140" y="90" text-anchor="middle" class="text-screen" font-size="16">Playing: Song.mp3</text>
+      <rect x="40" y="110" width="200" height="8" fill="#333"/>
+      <rect x="40" y="110" width="120" height="8" fill="#00E5FF"/>
+    </g>
+
+    <!-- 按键区域 (五维布局) -->
+    <g transform="translate(200, 320)">
+      <!-- 中间：播放/暂停 -->
+      <circle cx="0" cy="0" r="30" class="btn-body"/>
+      <text x="0" y="5" class="btn-text">OK/⏯</text>
+      
+      <!-- 上：音量+ -->
+      <circle cx="0" cy="-60" r="25" class="btn-body"/>
+      <text x="0" y="5" class="btn-text">VOL+</text>
+      
+      <!-- 下：音量- -->
+      <circle cx="0" cy="60" r="25" class="btn-body"/>
+      <text x="0" y="5" class="btn-text">VOL-</text>
+      
+      <!-- 左：上一曲 -->
+      <circle cx="-60" cy="0" r="25" class="btn-body"/>
+      <text x="0" y="5" class="btn-text">PREV</text>
+      
+      <!-- 右：下一曲 -->
+      <circle cx="60" cy="0" r="25" class="btn-body"/>
+      <text x="0" y="5" class="btn-text">NEXT</text>
+    </g>
+
+    <!-- SD卡模块 (侧插) -->
+    <g transform="translate(350, 250)">
+      <rect x="0" y="0" width="60" height="80" fill="#1565C0" stroke="#0D47A1" stroke-width="2"/>
+      <text x="30" y="45" text-anchor="middle" fill="white" font-size="12" font-family="sans-serif">SD Card</text>
+    </g>
+
+    <!-- 电源开关 -->
+    <rect x="-20" y="450" width="30" height="50" fill="#424242"/>
+    <rect x="-25" y="460" width="10" height="30" fill="#BDBDBD"/> <!-- 拨杆 -->
+
+    <!-- 充电口 -->
+    <g transform="translate(160, 590)">
+      <rect x="0" y="0" width="80" height="20" fill="#ccc" stroke="#999"/>
+      <rect x="10" y="5" width="60" height="10" fill="#333" rx="5"/>
+    </g>
+  </g>
+
+  <!-- 引线说明 -->
+  <!-- 指向 SD 卡 -->
+  <line x1="460" y1="390" x2="530" y2="390" class="label-line" stroke="#1976D2"/>
+  <text x="535" y="395" class="label-text">SD卡槽(侧面)</text>
+
+  <!-- 指向 ESP32 -->
+  <line x1="180" y1="150" x2="50" y2="150" class="label-line" style="stroke:#FBC02D; marker-end:none;"/>
+  <text x="10" y="155" class="label-text" text-anchor="end" style="fill:#F9A825;">核心板位于下方</text>
+
+  <!-- 指向 充电口 -->
+  <line x1="300" y1="710" x2="300" y2="750" class="label-line" style="stroke:#666; marker-end:url(#arrow-grey);"/>
+  <text x="300" y="770" class="label-text" text-anchor="middle" style="fill:#666;">Type-C 充电/烧录</text>
+
+</svg>
