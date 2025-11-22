@@ -130,6 +130,9 @@ static uint32_t s_pkt_cnt = 0; /* count of packets */
 static esp_avrc_rn_evt_cap_mask_t
     s_avrc_peer_rn_cap; /* AVRC target notification event capability bit mask */
 static TimerHandle_t s_tmr; /* handle of heart beat timer */
+static bool s_volume_init_done =
+    false; /* flag to track if initial volume has been set */
+static uint8_t s_current_volume = 0; /* current volume level (0-127) */
 
 static RingbufHandle_t s_ringbuf_handle = NULL;
 static mp3dec_t s_mp3d;
@@ -153,6 +156,9 @@ static bool s_prev_song_req = false;
 #define GPIO_BTN_PREV 4
 #define GPIO_BTN_PLAY 5
 #define GPIO_BTN_NEXT 15
+
+// Volume configuration (0-127, AVRCP standard range)
+#define INITIAL_VOLUME 20 // Default initial volume (about 63%)
 
 static const char remote_device_name[] = CONFIG_EXAMPLE_PEER_DEVICE_NAME;
 
@@ -435,6 +441,26 @@ static int32_t bt_app_a2d_data_cb(uint8_t *data, int32_t len) {
       } else {
         // No more data available right now
         break;
+      }
+    }
+
+    // Apply software volume control to the PCM data
+    if (s_current_volume < 127 && bytes_filled > 0) {
+      // Calculate volume scale factor (0.0 to 1.0)
+      float volume_scale = (float)s_current_volume / 127.0f;
+
+      // Apply volume to 16-bit PCM samples
+      int16_t *samples = (int16_t *)data;
+      int32_t sample_count = bytes_filled / 2; // 16-bit = 2 bytes per sample
+
+      for (int32_t i = 0; i < sample_count; i++) {
+        // Scale the sample and clamp to prevent overflow
+        int32_t scaled = (int32_t)(samples[i] * volume_scale);
+        if (scaled > 32767)
+          scaled = 32767;
+        if (scaled < -32768)
+          scaled = -32768;
+        samples[i] = (int16_t)scaled;
       }
     }
 
@@ -727,11 +753,10 @@ void bt_av_notify_evt_handler(uint8_t event_id,
   switch (event_id) {
   /* when volume changed locally on target, this event comes */
   case ESP_AVRC_RN_VOLUME_CHANGE: {
-    ESP_LOGI(BT_RC_CT_TAG, "Volume changed: %d", event_parameter->volume);
-    ESP_LOGI(BT_RC_CT_TAG, "Set absolute volume: volume %d",
-             event_parameter->volume + 5);
-    esp_avrc_ct_send_set_absolute_volume_cmd(APP_RC_CT_TL_RN_VOLUME_CHANGE,
-                                             event_parameter->volume + 5);
+    s_current_volume = event_parameter->volume; // Update software volume
+    ESP_LOGI(BT_RC_CT_TAG, "Volume changed on remote device: %d",
+             event_parameter->volume);
+    // Register for next volume change notification
     bt_av_volume_changed();
     break;
   }
@@ -759,6 +784,7 @@ static void bt_av_hdl_avrc_ct_evt(uint16_t event, void *p_param) {
       esp_avrc_ct_send_get_rn_capabilities_cmd(APP_RC_CT_TL_GET_CAPS);
     } else {
       s_avrc_peer_rn_cap.bits = 0;
+      s_volume_init_done = false; // Reset flag for next connection
     }
     break;
   }
@@ -797,6 +823,15 @@ static void bt_av_hdl_avrc_ct_evt(uint16_t event, void *p_param) {
     ESP_LOGI(BT_RC_CT_TAG, "remote rn_cap: count %d, bitmask 0x%x",
              rc->get_rn_caps_rsp.cap_count, rc->get_rn_caps_rsp.evt_set.bits);
     s_avrc_peer_rn_cap.bits = rc->get_rn_caps_rsp.evt_set.bits;
+
+    // Set initial volume when AVRCP connection is established
+    if (!s_volume_init_done) {
+      s_current_volume = INITIAL_VOLUME; // Update software volume
+      ESP_LOGI(BT_RC_CT_TAG, "Setting initial volume to %d", INITIAL_VOLUME);
+      esp_avrc_ct_send_set_absolute_volume_cmd(APP_RC_CT_TL_RN_VOLUME_CHANGE,
+                                               INITIAL_VOLUME);
+      s_volume_init_done = true;
+    }
 
     bt_av_volume_changed();
     break;
