@@ -11,6 +11,7 @@
 #include "bt_gap.h"
 #include "button_control.h"
 #include "common.h"
+#include "oled_display.h"
 #include "sd_card.h"
 
 #include "esp_bt.h"
@@ -26,6 +27,20 @@
 /*********************************
  * STATIC FUNCTION DEFINITION
  ********************************/
+
+/**
+ * @brief OLED display update task
+ */
+static void oled_update_task(void *arg) {
+  // Wait for system to stabilize before starting display updates
+  vTaskDelay(pdMS_TO_TICKS(2000));
+
+  while (1) {
+    oled_display_update();
+    vTaskDelay(pdMS_TO_TICKS(1000)); // Update every 1000ms to reduce I2C load
+  }
+}
+
 static void bt_av_hdl_stack_evt(uint16_t event, void *p_param) {
   ESP_LOGD(BT_AV_TAG, "%s event: %d", __func__, event);
 
@@ -73,6 +88,9 @@ void app_main(void) {
 
   // Initialize button control
   button_control_init();
+
+  // Initialize OLED display
+  oled_display_init();
 
   /* initialize NVS — it is used to store PHY calibration data */
   esp_err_t ret = nvs_flash_init();
@@ -135,4 +153,7 @@ void app_main(void) {
   bt_app_task_start_up();
   /* Bluetooth device name, connection mode and profile set up */
   bt_app_work_dispatch(bt_av_hdl_stack_evt, BT_APP_STACK_UP_EVT, NULL, 0, NULL);
+
+  // Start OLED update task with LOW priority (below BT audio priority)
+  xTaskCreate(oled_update_task, "oled_update", 4096, NULL, 2, NULL);
 }

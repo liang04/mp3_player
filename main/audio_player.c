@@ -39,7 +39,7 @@ bool s_prev_song_req = false;
  ********************************/
 static RingbufHandle_t s_ringbuf_handle = NULL;
 static mp3dec_t s_mp3d;
-static int s_current_song_idx = 0;
+int s_current_song_idx = 0; // Global for OLED access
 
 /*********************************
  * STATIC FUNCTIONS

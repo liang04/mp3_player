@@ -85,6 +85,7 @@ extern uint8_t s_current_volume;
 extern bool s_is_playing;
 extern bool s_next_song_req;
 extern bool s_prev_song_req;
+extern int s_current_song_idx;
 
 /*********************************
  * UTILITY FUNCTIONS
