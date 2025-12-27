@@ -18,9 +18,11 @@
 /*********************************
  * BUTTON CONTROL PINS
  ********************************/
-#define GPIO_BTN_PREV 35 // Previous track button (KEY1)
-#define GPIO_BTN_PLAY 32 // Play/Pause button (KEY2)
-#define GPIO_BTN_NEXT 22 // Next track button (KEY3)
+#define GPIO_BTN_PREV 26     // Previous track button (KEY1)
+#define GPIO_BTN_PLAY 27     // Play/Pause button (KEY2)
+#define GPIO_BTN_NEXT 22     // Next track button (KEY3)
+#define GPIO_BTN_VOL_UP 23   // Volume Up button
+#define GPIO_BTN_VOL_DOWN 33 // Volume Down button
 
 /*********************************
  * SD CARD SPI PINS
@@ -33,7 +35,7 @@
 /*********************************
  * OLED DISPLAY I2C PINS
  ********************************/
-#define GPIO_OLED_SDA 12 // I2C Data
-#define GPIO_OLED_SCL 13 // I2C Clock
+#define GPIO_OLED_SDA 16 // I2C Data (Changed to 16)
+#define GPIO_OLED_SCL 17 // I2C Clock (Changed to 17)
 
 #endif // GPIO_CONFIG_H

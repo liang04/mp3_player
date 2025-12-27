@@ -33,11 +33,13 @@
 
 | 功能 | GPIO |
 |------|------|
-| 上一曲 (KEY1) | GPIO 35 |
-| 播放/暂停 (KEY2) | GPIO 32 |
+| 上一曲 (KEY1) | GPIO 26 |
+| 播放/暂停 (KEY2) | GPIO 27 |
 | 下一曲 (KEY3) | GPIO 22 |
+| 音量 + | GPIO 23 |
+| 音量 - | GPIO 33 |
 
-按钮应连接到 GND（按下时接地）。
+按钮应连接到 GND（按下时接地），所有引脚均启用内部上拉电阻，**无需外接电阻**。
 
 #### SD 卡 (SPI)
 
@@ -52,8 +54,8 @@
 
 | 信号 | GPIO |
 |------|------|
-| SDA | GPIO 12 |
-| SCL | GPIO 13 |
+| SDA | GPIO 16 |
+| SCL | GPIO 17 |
 
 OLED 默认 I2C 地址：`0x3C`
 
@@ -71,16 +73,19 @@ GND            -----> GND
 
 ESP32                    SSD1306 OLED
 -----                    ------------
-GPIO 12 (SDA)  <-----> SDA
-GPIO 13 (SCL)  -----> SCL
+GPIO 16 (SDA)  <-----> SDA
+GPIO 17 (SCL)  -----> SCL
 3.3V           -----> VCC
 GND            -----> GND
 
 ESP32                    Buttons
 -----                    -------
-GPIO 35 (KEY1) -----> Prev Button -----> GND
-GPIO 32 (KEY2) -----> Play Button -----> GND
+GPIO 26 (KEY1) -----> Prev Button -----> GND
+GPIO 27 (KEY2) -----> Play Button -----> GND
 GPIO 22 (KEY3) -----> Next Button -----> GND
+GPIO 23        -----> Vol+ Button -----> GND
+GPIO 33        -----> Vol- Button -----> GND
+
 ```
 
 ## 软件依赖
@@ -150,9 +155,11 @@ idf.py -p PORT monitor
 
 ### 按钮控制
 
-- **播放/暂停**：短按 KEY2 (GPIO 32) 按钮
+- **播放/暂停**：短按 KEY2 (GPIO 27) 按钮
 - **下一曲**：短按 KEY3 (GPIO 22) 按钮
-- **上一曲**：短按 KEY1 (GPIO 35) 按钮
+- **上一曲**：短按 KEY1 (GPIO 26) 按钮
+- **音量 +**：短按或长按 GPIO 23
+- **音量 -**：短按或长按 GPIO 33
 
 ### OLED 显示内容
 
@@ -289,7 +296,7 @@ I (12365) AUDIO_PLAYER: Now playing: /sdcard/music/song02.mp3
 **问题**：OLED 屏幕没有任何显示
 
 **解决方案**：
-1. 检查 I2C 引脚连接（SDA=GPIO12, SCL=GPIO13）
+1. 检查 I2C 引脚连接（SDA=GPIO16, SCL=GPIO17）
 2. 验证 OLED 模块供电（3.3V）
 3. 确认 OLED I2C 地址（默认 0x3C，有些模块是 0x3D）
 4. 使用 I2C 扫描工具确认设备地址
@@ -300,7 +307,7 @@ I (12365) AUDIO_PLAYER: Now playing: /sdcard/music/song02.mp3
 **问题**：按下按钮没有反应
 
 **解决方案**：
-1. 检查按钮引脚连接（GPIO 35, 32, 22）
+1. 检查按钮引脚连接（GPIO 26, 27, 22, 23, 33）
 2. 确认按钮连接到 GND（按下时接地）
 3. 检查按钮是否正常工作（用万用表测试）
 4. 在日志中查看按钮事件（设置 LOG_LEVEL 为 DEBUG）
