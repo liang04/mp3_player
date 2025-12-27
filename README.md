@@ -33,9 +33,9 @@
 
 | 功能 | GPIO |
 |------|------|
-| 上一曲 | GPIO 4 |
-| 播放/暂停 | GPIO 5 |
-| 下一曲 | GPIO 15 |
+| 上一曲 (KEY1) | GPIO 35 |
+| 播放/暂停 (KEY2) | GPIO 32 |
+| 下一曲 (KEY3) | GPIO 22 |
 
 按钮应连接到 GND（按下时接地）。
 
@@ -43,17 +43,17 @@
 
 | 信号 | GPIO |
 |------|------|
-| MOSI | GPIO 26 |
-| MISO | GPIO 19 |
+| MOSI | GPIO 19 |
+| MISO | GPIO 5 |
 | SCLK | GPIO 18 |
-| CS | GPIO 27 |
+| CS | GPIO 21 |
 
 #### OLED 显示 (I2C)
 
 | 信号 | GPIO |
 |------|------|
-| SDA | GPIO 21 |
-| SCL | GPIO 22 |
+| SDA | GPIO 12 |
+| SCL | GPIO 13 |
 
 OLED 默认 I2C 地址：`0x3C`
 
@@ -62,25 +62,25 @@ OLED 默认 I2C 地址：`0x3C`
 ```
 ESP32                    SD Card Module
 -----                    --------------
-GPIO 26 (MOSI) -----> MOSI
-GPIO 19 (MISO) <----- MISO
+GPIO 19 (MOSI) -----> MOSI
+GPIO 5  (MISO) <----- MISO
 GPIO 18 (SCLK) -----> CLK
-GPIO 27 (CS)   -----> CS
+GPIO 21 (CS)   -----> CS
 3.3V           -----> VCC
 GND            -----> GND
 
 ESP32                    SSD1306 OLED
 -----                    ------------
-GPIO 21 (SDA)  <-----> SDA
-GPIO 22 (SCL)  -----> SCL
+GPIO 12 (SDA)  <-----> SDA
+GPIO 13 (SCL)  -----> SCL
 3.3V           -----> VCC
 GND            -----> GND
 
 ESP32                    Buttons
 -----                    -------
-GPIO 4         -----> Prev Button -----> GND
-GPIO 5         -----> Play Button -----> GND
-GPIO 15        -----> Next Button -----> GND
+GPIO 35 (KEY1) -----> Prev Button -----> GND
+GPIO 32 (KEY2) -----> Play Button -----> GND
+GPIO 22 (KEY3) -----> Next Button -----> GND
 ```
 
 ## 软件依赖
@@ -150,9 +150,9 @@ idf.py -p PORT monitor
 
 ### 按钮控制
 
-- **播放/暂停**：短按 GPIO 5 按钮
-- **下一曲**：短按 GPIO 15 按钮
-- **上一曲**：短按 GPIO 4 按钮
+- **播放/暂停**：短按 KEY2 (GPIO 32) 按钮
+- **下一曲**：短按 KEY3 (GPIO 22) 按钮
+- **上一曲**：短按 KEY1 (GPIO 35) 按钮
 
 ### OLED 显示内容
 
@@ -289,7 +289,7 @@ I (12365) AUDIO_PLAYER: Now playing: /sdcard/music/song02.mp3
 **问题**：OLED 屏幕没有任何显示
 
 **解决方案**：
-1. 检查 I2C 引脚连接（SDA=GPIO21, SCL=GPIO22）
+1. 检查 I2C 引脚连接（SDA=GPIO12, SCL=GPIO13）
 2. 验证 OLED 模块供电（3.3V）
 3. 确认 OLED I2C 地址（默认 0x3C，有些模块是 0x3D）
 4. 使用 I2C 扫描工具确认设备地址
@@ -300,7 +300,7 @@ I (12365) AUDIO_PLAYER: Now playing: /sdcard/music/song02.mp3
 **问题**：按下按钮没有反应
 
 **解决方案**：
-1. 检查按钮引脚连接（GPIO 4, 5, 15）
+1. 检查按钮引脚连接（GPIO 35, 32, 22）
 2. 确认按钮连接到 GND（按下时接地）
 3. 检查按钮是否正常工作（用万用表测试）
 4. 在日志中查看按钮事件（设置 LOG_LEVEL 为 DEBUG）

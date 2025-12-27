@@ -18,22 +18,22 @@
 /*********************************
  * BUTTON CONTROL PINS
  ********************************/
-#define GPIO_BTN_PREV 4  // Previous track button
-#define GPIO_BTN_PLAY 5  // Play/Pause button
-#define GPIO_BTN_NEXT 15 // Next track button
+#define GPIO_BTN_PREV 35 // Previous track button (KEY1)
+#define GPIO_BTN_PLAY 32 // Play/Pause button (KEY2)
+#define GPIO_BTN_NEXT 22 // Next track button (KEY3)
 
 /*********************************
  * SD CARD SPI PINS
  ********************************/
-#define GPIO_SD_MOSI 26 // SPI MOSI (Master Out Slave In)
-#define GPIO_SD_MISO 19 // SPI MISO (Master In Slave Out)
+#define GPIO_SD_MOSI 19 // SPI MOSI (Master Out Slave In)
+#define GPIO_SD_MISO 5  // SPI MISO (Master In Slave Out)
 #define GPIO_SD_SCLK 18 // SPI Clock
-#define GPIO_SD_CS 27   // SPI Chip Select
+#define GPIO_SD_CS 21   // SPI Chip Select
 
 /*********************************
  * OLED DISPLAY I2C PINS
  ********************************/
-#define GPIO_OLED_SDA 21 // I2C Data
-#define GPIO_OLED_SCL 22 // I2C Clock
+#define GPIO_OLED_SDA 12 // I2C Data
+#define GPIO_OLED_SCL 13 // I2C Clock
 
 #endif // GPIO_CONFIG_H
